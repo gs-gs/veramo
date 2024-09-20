@@ -9,6 +9,7 @@ import {
   IKey,
   IKeyManager,
   IssuerAgentContext,
+  IssuerType,
   IVerifyCredentialArgs,
   IVerifyPresentationArgs,
   IVerifyResult,
@@ -671,7 +672,12 @@ async function verifyJWT(jwt: string, context: VerifierAgentContext) {
   }
   const didUrl = header.iss
   const payload = jose.decodeJwt(jwt)
-  if (payload.issuer !== didUrl) {
+  const issuer: IssuerType = payload.issuer as any
+  if (
+    issuer &&
+    ((typeof issuer === 'string' && issuer !== didUrl) ||
+      (typeof issuer === 'object' && issuer.id !== didUrl))
+  ) {
     throw new Error('Invalid JWT: iss field in header does not match issuer field in payload')
   }
 

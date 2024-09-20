@@ -411,7 +411,15 @@ export class KeyManagementSystem extends AbstractKeyManagementSystem {
       format: 'jwk',
     })
 
-    const iss = JSON.parse(new TextDecoder('utf-8').decode(data)).issuer
+    const issuer = JSON.parse(new TextDecoder('utf-8').decode(data)).issuer
+    let iss: string
+    if (typeof issuer === 'string') {
+      iss = issuer
+    } else if (typeof issuer === 'object' && issuer.hasOwnProperty('id')) {
+      iss = issuer.id
+    } else {
+      throw Error('invalid_argument: issuer must be a string or an object with an "id" property')
+    }
 
     /**
      * The Media Types should follow the document:
