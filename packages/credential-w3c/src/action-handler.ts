@@ -208,12 +208,6 @@ export class CredentialPlugin implements IAgentPlugin {
     const credentialContext = normalizeContext(credential['@context'])
     const credentialType = processEntryToArray(credential.type, 'VerifiableCredential')
 
-    // only add issuanceDate for JWT
-    now = typeof now === 'number' ? new Date(now * 1000) : now
-    if (!Object.getOwnPropertyNames(credential).includes('issuanceDate')) {
-      credential.issuanceDate = (now instanceof Date ? now : new Date()).toISOString()
-    }
-
     credential = {
       ...credential,
       '@context': credentialContext,
@@ -276,6 +270,12 @@ export class CredentialPlugin implements IAgentPlugin {
           alg = 'EdDSA'
         } else if (key.type === 'Secp256r1') {
           alg = 'ES256'
+        }
+
+        // only add issuanceDate for JWT
+        now = typeof now === 'number' ? new Date(now * 1000) : now
+        if (!Object.getOwnPropertyNames(credential).includes('issuanceDate')) {
+          credential.issuanceDate = (now instanceof Date ? now : new Date()).toISOString()
         }
 
         const signer = wrapSigner(context, key, alg)
