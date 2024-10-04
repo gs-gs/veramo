@@ -103,6 +103,17 @@ export interface UnsignedCredential {
 }
 
 /**
+ * Represents an enveloped Verifiable Credential, which is a JSON object that contains a Verifiable Credential.
+ * See {@link https://w3c.github.io/vc-data-model/#enveloped-verifiable-credentials | VC data model}
+ * @beta This API may change without a BREAKING CHANGE notice.
+ */
+export interface EnvelopedVerifiableCredential {
+  '@context': ContextType
+  type: string
+  id: string
+}
+
+/**
  * Represents a signed Verifiable Credential payload (includes proof), using a JSON representation.
  * See {@link https://www.w3.org/TR/vc-data-model/#credentials | VC data model}
  *

@@ -1,4 +1,5 @@
 import {
+  EnvelopedVerifiableCredential,
   IAgentContext,
   IAgentPlugin,
   ICreateVerifiableCredentialArgs,
@@ -125,8 +126,8 @@ export class CredentialPlugin implements IAgentPlugin {
     if (presentation.verifiableCredential) {
       presentation.verifiableCredential = presentation.verifiableCredential.map((cred) => {
         // map JWT credentials to their canonical form
-        if (typeof cred !== 'string' && cred.proof.jwt) {
-          return cred.proof.jwt
+        if (typeof cred !== 'string' && (<VerifiableCredential>cred).proof.jwt) {
+          return (<VerifiableCredential>cred).proof.jwt
         } else {
           return cred
         }
@@ -252,10 +253,17 @@ export class CredentialPlugin implements IAgentPlugin {
         }
       } else if (proofFormat === 'EnvelopingProofJose') {
         if (typeof context.agent.keyManagerSignJOSE == 'function') {
-          verifiableCredential = await context.agent.keyManagerSignJOSE({
+          const jwt = await context.agent.keyManagerSignJOSE({
             kid: identifier.controllerKeyId,
             data: JSON.stringify(credential),
           })
+          const header = jose.decodeProtectedHeader(jwt)
+
+          verifiableCredential = {
+            '@context': credentialContext,
+            type: 'EnvelopedVerifiableCredential',
+            id: `data:application/${header.typ},${jwt}`,
+          } as VerifiableCredential
         } else {
           throw new Error(
             'invalid_setup: your agent does not seem to have keyManagerSignJOSE plugin installed',
@@ -309,7 +317,8 @@ export class CredentialPlugin implements IAgentPlugin {
 
     const type: DocumentFormat = detectDocumentType(credential)
     if (type == DocumentFormat.JWT) {
-      let jwt: string = typeof credential === 'string' ? credential : credential.proof.jwt
+      let jwt: string =
+        typeof credential === 'string' ? credential : (<VerifiableCredential>credential).proof.jwt
 
       const resolver = {
         resolve: (didUrl: string) =>
@@ -333,7 +342,10 @@ export class CredentialPlugin implements IAgentPlugin {
         verifiedCredential = verificationResult.verifiableCredential
 
         // if credential was presented with other fields, make sure those fields match what's in the JWT
-        if (typeof credential !== 'string' && credential.proof.type === 'JwtProof2020') {
+        if (
+          typeof credential !== 'string' &&
+          (<VerifiableCredential>credential).proof.type === 'JwtProof2020'
+        ) {
           const credentialCopy = JSON.parse(JSON.stringify(credential))
           delete credentialCopy.proof.jwt
 
@@ -405,13 +417,15 @@ export class CredentialPlugin implements IAgentPlugin {
       verifiedCredential = <VerifiableCredential>credential
     } else if (type === DocumentFormat.ENVELOPING_PROOF) {
       try {
+        const jwt = (<EnvelopedVerifiableCredential>credential).id.split(',')[1]
         // compactVerify use for logging or further validation
-        const compactVerify = await verifyJWT(credential as string, context)
+        const compactVerify = await verifyJWT(jwt, context)
         // Process successfully completed, set appropriate values
         verificationResult.verified = true
         verificationResult.mediaType = 'vc' // or 'vp' based on your application context
-        verificationResult.document = jose.decodeJwt(credential as string)
-        verifiedCredential = jose.decodeJwt(credential as string)
+        const decodedJwt = jose.decodeJwt(jwt)
+        verificationResult.document = decodedJwt
+        verifiedCredential = decodedJwt as VerifiableCredential
       } catch (e) {
         debug('encountered error while verifying Enveloping Proof credential: %o', e)
         const { message, errorCode } = e
@@ -626,10 +640,8 @@ function wrapSigner(
 
 function detectDocumentType(document: W3CVerifiableCredential | W3CVerifiablePresentation): DocumentFormat {
   // should put a check for enveloping proof before checking for jwt
-  if (typeof document === 'string') {
-    const detectJWT = jose.decodeJwt(document)
-    if (typeof document === 'string' && detectJWT.hasOwnProperty('issuer'))
-      return DocumentFormat.ENVELOPING_PROOF
+  if ((<EnvelopedVerifiableCredential>document)?.type === 'EnvelopedVerifiableCredential') {
+    return DocumentFormat.ENVELOPING_PROOF
   }
   if (typeof document === 'string' || (<VerifiableCredential>document)?.proof?.jwt) return DocumentFormat.JWT
   if ((<VerifiableCredential>document)?.proof?.type === 'EthereumEip712Signature2021')
