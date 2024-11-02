@@ -207,7 +207,7 @@ export class CredentialPlugin implements IAgentPlugin {
   ): Promise<VerifiableCredential> {
     let { credential, proofFormat, keyRef, removeOriginalFields, save, now, ...otherOptions } = args
     const credentialContext = normalizeContext(credential['@context'])
-    const credentialType = processEntryToArray(credential.type, 'VerifiableCredential')
+    const credentialType = processEntryToArray(credential.type)
 
     credential = {
       ...credential,
