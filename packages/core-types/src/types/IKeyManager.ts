@@ -190,7 +190,7 @@ export interface IKeyManagerSignEthTXArgs {
  */
 export interface IKeyManagerSignJOSE {
   /**
-   * Key ID
+   * Key ID which stores the private key, get the key from the key manager
    */
   kid: string
 
@@ -198,6 +198,11 @@ export interface IKeyManagerSignJOSE {
    * Data to sign
    */
   data: string
+
+  /**
+   * kid used in the header
+   */
+  keyIdHeader: string
 }
 
 /**

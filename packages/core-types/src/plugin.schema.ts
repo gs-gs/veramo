@@ -887,16 +887,21 @@ export const schema = {
           "properties": {
             "kid": {
               "type": "string",
-              "description": "Key ID"
+              "description": "Key ID which stores the private key, get the key from the key manager"
             },
             "data": {
               "type": "string",
               "description": "Data to sign"
+            },
+            "keyIdHeader": {
+              "type": "string",
+              "description": "kid used in the header"
             }
           },
           "required": [
             "kid",
-            "data"
+            "data",
+            "keyIdHeader"
           ],
           "description": "Input arguments for  {@link IKeyManager.IKeyManagerSignJOSE | IKeyManagerSignJOSE }"
         },

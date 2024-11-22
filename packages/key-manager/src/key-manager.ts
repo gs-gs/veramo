@@ -241,10 +241,10 @@ export class KeyManager implements IAgentPlugin {
    * @param data - JSON object to sign
    * @returns JWS string
    */
-  async keyManagerSignJOSE({ kid, data }: IKeyManagerSignJOSE): Promise<string> {
+  async keyManagerSignJOSE({ kid, data, keyIdHeader }: IKeyManagerSignJOSE): Promise<string> {
     const keyInfo = await this.store.getKey({ kid })
     const kms = this.getKms(keyInfo.kms)
     const uint8Array = Buffer.from(data, 'utf-8')
-    return kms.sign({ keyRef: keyInfo, data: uint8Array, envelopingProof: true })
+    return kms.sign({ keyRef: keyInfo, data: uint8Array, options: { envelopingProof: true, keyIdHeader } })
   }
 }
