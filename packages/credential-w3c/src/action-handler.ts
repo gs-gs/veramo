@@ -10,11 +10,11 @@ import {
   IKey,
   IKeyManager,
   IssuerAgentContext,
-  IssuerType,
   IVerifyCredentialArgs,
   IVerifyPresentationArgs,
   IVerifyResult,
   ProofFormat,
+  UnsignedCredential,
   VerifiableCredential,
   VerifiablePresentation,
   VerifierAgentContext,
@@ -266,11 +266,11 @@ export class CredentialPlugin implements IAgentPlugin {
             keyIdHeader: matchingVerificationMethod?.id,
           })
           const header = jose.decodeProtectedHeader(jwt)
-
+          const type = header.typ ?? 'vc'
           verifiableCredential = {
             '@context': credentialContext,
             type: 'EnvelopedVerifiableCredential',
-            id: `data:application/${header.typ},${jwt}`,
+            id: `data:application/${type},${jwt}`,
           } as VerifiableCredential
         } else {
           throw new Error(
@@ -687,26 +687,7 @@ async function verifyJWT(jwt: string, context: VerifierAgentContext) {
 
   validateHeaderJOSE(header, payload)
 
-  const payloadIssuer = extractIssuer(JSON.stringify(payload), { removeParameters: true })
-  // Resolve the DID to get the DID document
-  // const doc = await context.agent.resolveDid({ didUrl: payloadIssuer })
-
-  // if (!doc || !doc.didDocument?.verificationMethod) {
-  //   throw new Error('Could not resolve DID or find verification methods')
-  // }
-
-  // // Find the verification method that matches the kid
-  // const key = doc.didDocument?.verificationMethod.find((method: any) => method.id === header.kid)
-  // if (!key || !key.publicKeyJwk) {
-  //   throw new Error("kid does not match any key in the issuer's DID document")
-  // }
-
-  // let types = ['JsonWebKey'] // default type
-  // const verificationMethod = doc.didDocument?.verificationMethod
-  // if (verificationMethod && verificationMethod.length > 0) {
-  //   let matchingVerificationMethod = verificationMethod.find((item) => types.includes(item.type))
-  //   if (!matchingVerificationMethod) throw new Error('No matching verification method found')
-  let publicKey
+  const payloadIssuer = extractIssuer(payload as UnsignedCredential, { removeParameters: true })
   const verificationMethods = await resolveDidAndGetVerificationMethods(payloadIssuer, context)
   const matchingVerificationMethod = await findMatchingVerificationMethod(
     verificationMethods,
@@ -714,11 +695,11 @@ async function verifyJWT(jwt: string, context: VerifierAgentContext) {
     header.kid,
   )
   const jwk = matchingVerificationMethod?.publicKeyJwk ?? {}
+  let publicKey
   publicKey = createPublicKey({
     key: jwk,
     format: 'jwk',
   })
-  // }
 
   try {
     if (publicKey) {

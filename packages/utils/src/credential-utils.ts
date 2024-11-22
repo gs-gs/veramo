@@ -4,6 +4,7 @@ import {
   IMessage,
   IssuerType,
   PresentationPayload,
+  UnsignedCredential,
   VerifiableCredential,
   VerifiablePresentation,
   W3CVerifiableCredential,
@@ -152,6 +153,7 @@ export function extractIssuer(
     | W3CVerifiablePresentation
     | CredentialPayload
     | PresentationPayload
+    | UnsignedCredential
     | null,
   options: { removeParameters?: boolean } = {}
 ): string {
