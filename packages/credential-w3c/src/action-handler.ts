@@ -430,7 +430,7 @@ export class CredentialPlugin implements IAgentPlugin {
         const compactVerify = await verifyJWT(jwt, context)
         // Process successfully completed, set appropriate values
         verificationResult.verified = true
-        verificationResult.mediaType = 'vc' // or 'vp' based on your application context
+        verificationResult.mediaType = compactVerify.protectedHeader.typ ?? 'vc'
         const decodedJwt = jose.decodeJwt(jwt)
         verificationResult.document = decodedJwt
         verifiedCredential = decodedJwt as VerifiableCredential

@@ -887,7 +887,7 @@ export const schema = {
           "properties": {
             "kid": {
               "type": "string",
-              "description": "Key ID which stores the private key, get the key from the key manager"
+              "description": "Key ID that identifies the private key stored in the key manager"
             },
             "data": {
               "type": "string",

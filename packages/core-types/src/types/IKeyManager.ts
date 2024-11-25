@@ -190,7 +190,7 @@ export interface IKeyManagerSignEthTXArgs {
  */
 export interface IKeyManagerSignJOSE {
   /**
-   * Key ID which stores the private key, get the key from the key manager
+   * Key ID that identifies the private key stored in the key manager
    */
   kid: string
 
