@@ -119,12 +119,15 @@ export class KeyManagementSystem extends AbstractKeyManagementSystem {
     keyRef,
     algorithm,
     data,
-    envelopingProof,
+    options,
   }: {
     keyRef: Pick<IKey, 'kid'>
     algorithm?: string
     data: Uint8Array
-    envelopingProof?: boolean
+    options: {
+      envelopingProof?: boolean
+      keyIdHeader?: string
+    }
   }): Promise<string> {
     let managedKey: ManagedPrivateKey
     try {
@@ -134,13 +137,13 @@ export class KeyManagementSystem extends AbstractKeyManagementSystem {
     }
 
     // If the key is in Envoloping Proof format, we need to use a different signing method
-    if (envelopingProof) {
+    if (options?.envelopingProof) {
       // Supported algorithms for Enveloping Proof
       if (
         (managedKey.type === 'Ed25519' && typeof algorithm === 'undefined') ||
         (typeof algorithm !== 'undefined' && ['Ed25519', 'EdDSA'].includes(algorithm))
       ) {
-        return await this.signJOSE(managedKey, data)
+        return await this.signJOSE(managedKey, data, options?.keyIdHeader as string)
       }
 
       throw Error(`not_supported: Cannot sign ${algorithm} using key of type ${managedKey.type}`)
@@ -387,13 +390,18 @@ export class KeyManagementSystem extends AbstractKeyManagementSystem {
   }
 
   /**
-   * Sign data using a private key in JOSE format
+   * Sign data using a private key in JOSE format, algorithm `EdDSA`
+   * Currently only supports Ed25519 keys and VC formats (not VP)
    * @param privateKeyHex  The private key in hexadecimal format
    * @param data The data to sign
    * @param alg The algorithm to use
    * @returns a compact JWS string
    */
-  private async signJOSE(key: ManagedPrivateKey, data: Uint8Array) {
+  private async signJOSE(key: ManagedPrivateKey, data: Uint8Array, kid: string) {
+    if (!kid || typeof kid !== 'string') {
+      throw Error('invalid_arguments: key ID is required')
+    }
+
     let secretKeyHex = key.privateKeyHex
     if (key.privateKeyHex.endsWith(key.alias)) {
       secretKeyHex = key.privateKeyHex.substring(0, key.privateKeyHex.length - key.alias.length)
@@ -411,22 +419,12 @@ export class KeyManagementSystem extends AbstractKeyManagementSystem {
       format: 'jwk',
     })
 
-    const issuer = JSON.parse(new TextDecoder('utf-8').decode(data)).issuer
-    let iss: string
-    if (typeof issuer === 'string') {
-      iss = issuer
-    } else if (typeof issuer === 'object' && issuer.hasOwnProperty('id')) {
-      iss = issuer.id
-    } else {
-      throw Error('invalid_argument: issuer must be a string or an object with an "id" property')
-    }
-
     /**
      * The Media Types should follow the document:
      * https://www.w3.org/TR/vc-jose-cose/#media-types
      */
     const signature = await new jose.CompactSign(data)
-      .setProtectedHeader({ alg: 'EdDSA', iss, typ: 'vc-ld+jwt' })
+      .setProtectedHeader({ alg: 'EdDSA', kid, cty: 'vc', typ: 'vc+jwt' })
       .sign(privateKey)
     return signature
   }

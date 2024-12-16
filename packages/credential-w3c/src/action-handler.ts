@@ -10,11 +10,11 @@ import {
   IKey,
   IKeyManager,
   IssuerAgentContext,
-  IssuerType,
   IVerifyCredentialArgs,
   IVerifyPresentationArgs,
   IVerifyResult,
   ProofFormat,
+  UnsignedCredential,
   VerifiableCredential,
   VerifiablePresentation,
   VerifierAgentContext,
@@ -44,6 +44,9 @@ import {
   processEntryToArray,
   intersect,
   normalizeContext,
+  validateHeaderJOSE,
+  resolveDidAndGetVerificationMethods,
+  findMatchingVerificationMethod,
 } from '@veramo/utils'
 import Debug from 'debug'
 import { Resolvable } from 'did-resolver'
@@ -253,16 +256,21 @@ export class CredentialPlugin implements IAgentPlugin {
         }
       } else if (proofFormat === 'EnvelopingProofJose') {
         if (typeof context.agent.keyManagerSignJOSE == 'function') {
+          const issuerDid = extractIssuer(credential, { removeParameters: true })
+          const verificationMethods = await resolveDidAndGetVerificationMethods(issuerDid, context)
+          const matchingVerificationMethod = await findMatchingVerificationMethod(verificationMethods)
+
           const jwt = await context.agent.keyManagerSignJOSE({
             kid: identifier.controllerKeyId,
             data: JSON.stringify(credential),
+            keyIdHeader: matchingVerificationMethod?.id,
           })
           const header = jose.decodeProtectedHeader(jwt)
-
+          const type = header.typ ?? 'vc'
           verifiableCredential = {
             '@context': credentialContext,
             type: 'EnvelopedVerifiableCredential',
-            id: `data:application/${header.typ},${jwt}`,
+            id: `data:application/${type},${jwt}`,
           } as VerifiableCredential
         } else {
           throw new Error(
@@ -422,7 +430,7 @@ export class CredentialPlugin implements IAgentPlugin {
         const compactVerify = await verifyJWT(jwt, context)
         // Process successfully completed, set appropriate values
         verificationResult.verified = true
-        verificationResult.mediaType = 'vc' // or 'vp' based on your application context
+        verificationResult.mediaType = compactVerify.protectedHeader.typ ?? 'vc'
         const decodedJwt = jose.decodeJwt(jwt)
         verificationResult.document = decodedJwt
         verifiedCredential = decodedJwt as VerifiableCredential
@@ -673,40 +681,25 @@ async function isRevoked(
  * @returns The payload and protected header of the JWT if verification is successful
  */
 async function verifyJWT(jwt: string, context: VerifierAgentContext) {
-  // get iss in header
+  // Decode the JWT to get and validate the header
   const header = jose.decodeProtectedHeader(jwt)
-  if (!header.hasOwnProperty('iss')) {
-    throw new Error('Invalid JWT: iss field not found in header')
-  }
-
-  if (typeof header.iss !== 'string') {
-    throw new Error('Invalid JWT: iss should be a string')
-  }
-  const didUrl = header.iss
   const payload = jose.decodeJwt(jwt)
-  const issuer: IssuerType = payload.issuer as any
-  if (
-    issuer &&
-    ((typeof issuer === 'string' && issuer !== didUrl) ||
-      (typeof issuer === 'object' && issuer.id !== didUrl))
-  ) {
-    throw new Error('Invalid JWT: iss field in header does not match issuer field in payload')
-  }
 
-  // Resolve the DID to get the DID document
-  const doc = await context.agent.resolveDid({ didUrl })
+  validateHeaderJOSE(header, payload)
+
+  const payloadIssuer = extractIssuer(payload as UnsignedCredential, { removeParameters: true })
+  const verificationMethods = await resolveDidAndGetVerificationMethods(payloadIssuer, context)
+  const matchingVerificationMethod = await findMatchingVerificationMethod(
+    verificationMethods,
+    ['JsonWebKey'],
+    header.kid,
+  )
+  const jwk = matchingVerificationMethod?.publicKeyJwk ?? {}
   let publicKey
-  let types = ['JsonWebKey'] // default type
-  const verificationMethod = doc.didDocument?.verificationMethod
-  if (verificationMethod && verificationMethod.length > 0) {
-    let matchingVerificationMethod = verificationMethod.find((item) => types.includes(item.type))
-    if (!matchingVerificationMethod) throw new Error('No matching verification method found')
-    const jwk = matchingVerificationMethod?.publicKeyJwk ?? {}
-    publicKey = createPublicKey({
-      key: jwk,
-      format: 'jwk',
-    })
-  }
+  publicKey = createPublicKey({
+    key: jwk,
+    format: 'jwk',
+  })
 
   try {
     if (publicKey) {
