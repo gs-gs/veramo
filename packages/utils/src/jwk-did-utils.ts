@@ -130,6 +130,11 @@ export const validateHeaderJOSE = (header: any, payload: any) => {
     throw new Error('alg must be present and a string')
   }
 
+  // Reject "none" algorithm as per spec
+  if (header.alg === 'none') {
+    throw new Error('alg must not be "none"')
+  }
+
   // Check for 'kid' (Key ID - Required)
   // https://www.w3.org/TR/vc-jose-cose/#kid
   if (!isString(header.kid)) {
@@ -143,6 +148,10 @@ export const validateHeaderJOSE = (header: any, payload: any) => {
   // Check for 'iss' (Issuer - Optional)
   // https://www.w3.org/TR/vc-jose-cose/#iss
   if ('iss' in header) {
+    if (!isString(header.iss)) {
+      throw new Error('iss must be a string when present')
+    }
+
     if (!('issuer' in payload)) {
       throw new Error('issuer must be present in payload when iss is in header')
     }
@@ -160,10 +169,6 @@ export const validateHeaderJOSE = (header: any, payload: any) => {
     if (!isString(header.cty)) {
       throw new Error('cty must be a string')
     }
-
-    if (header.cty !== 'vc') {
-      throw new Error('cty must be "vc"')
-    }
   }
 
   // Check for 'typ' (Type - Optional)
@@ -171,10 +176,6 @@ export const validateHeaderJOSE = (header: any, payload: any) => {
   if ('typ' in header) {
     if (!isString(header.typ)) {
       throw new Error('typ must be a string')
-    }
-
-    if (header.typ !== 'vc+jwt') {
-      throw new Error('typ must be "vc+jwt"')
     }
   }
 }
