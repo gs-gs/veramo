@@ -41,6 +41,7 @@ import {
   removeDIDParameters,
   isDefined,
   MANDATORY_CREDENTIAL_CONTEXT,
+  ENVELOPED_CREDENTIAL_CONTEXT,
   processEntryToArray,
   intersect,
   normalizeContext,
@@ -268,7 +269,7 @@ export class CredentialPlugin implements IAgentPlugin {
           const header = jose.decodeProtectedHeader(jwt)
           const type = header.typ ?? 'vc'
           verifiableCredential = {
-            '@context': credentialContext,
+            '@context': [ENVELOPED_CREDENTIAL_CONTEXT],
             type: 'EnvelopedVerifiableCredential',
             id: `data:application/${type},${jwt}`,
           } as VerifiableCredential

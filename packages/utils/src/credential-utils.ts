@@ -27,6 +27,17 @@ export const MANDATORY_CREDENTIAL_CONTEXT = 'https://www.w3.org/2018/credentials
 
 export const MANDATORY_CREDENTIAL_CONTEXTS = ['https://www.w3.org/2018/credentials/v1', 'https://www.w3.org/ns/credentials/v2']
 
+/**
+ * The `@context` for an EnvelopedVerifiableCredential envelope.
+ * Per W3C VC Data Model 2.0 §3.3, the envelope's `@context` must include a context
+ * that defines `EnvelopedVerifiableCredential` — which is the v2 context.
+ * The inner credential (inside the JWT) retains its own full `@context`.
+ *
+ * @see https://www.w3.org/TR/vc-data-model-2.0/#enveloped-verifiable-credentials
+ * @public
+ */
+export const ENVELOPED_CREDENTIAL_CONTEXT = 'https://www.w3.org/ns/credentials/v2'
+
 export function normalizeContext(context: string | string[] | any): string[] {
   const contexts = processEntryToArray(context)
   
