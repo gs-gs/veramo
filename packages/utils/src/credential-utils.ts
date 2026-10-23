@@ -28,10 +28,9 @@ export const MANDATORY_CREDENTIAL_CONTEXT = 'https://www.w3.org/2018/credentials
 export const MANDATORY_CREDENTIAL_CONTEXTS = ['https://www.w3.org/2018/credentials/v1', 'https://www.w3.org/ns/credentials/v2']
 
 /**
- * The `@context` for an EnvelopedVerifiableCredential envelope.
- * Per W3C VC Data Model 2.0 §3.3, the envelope's `@context` must include a context
- * that defines `EnvelopedVerifiableCredential` — which is the v2 context.
- * The inner credential (inside the JWT) retains its own full `@context`.
+ * Envelope `@context` for an `EnvelopedVerifiableCredential`. The VC Data Model 2.0 section on
+ * enveloped verifiable credentials requires a context that defines this type, and the v2 base
+ * context does. The credential signed inside the envelope keeps its own `@context`.
  *
  * @see https://www.w3.org/TR/vc-data-model-2.0/#enveloped-verifiable-credentials
  * @public
