@@ -9,8 +9,10 @@ import { jest } from '@jest/globals'
 //   normalizePresentation: jest.fn(() => Promise.resolve('mockPresentation')),
 // }))
 
+import * as jose from 'jose'
 import {
   CredentialPayload,
+  DIDResolutionResult,
   ICredentialPlugin,
   IDataStore,
   IDIDManager,
@@ -98,6 +100,11 @@ let agent = {
   getDIDComponentById: jest.fn(),
   emit: jest.fn(),
   keyManagerSign: jest.fn(async (args): Promise<string> => 'mockJWT'),
+  keyManagerSignJOSE: jest.fn(async (args: { data: string }): Promise<string> => {
+    const header = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'vc+jwt' })).toString('base64url')
+    const payload = Buffer.from(args.data).toString('base64url')
+    return `${header}.${payload}.mockSignature`
+  }),
   keyManagerGet: jest.fn(
     async (args): Promise<IKey> => ({
       kid: '',
@@ -171,6 +178,56 @@ describe('@veramo/credential-w3c', () => {
     expect(keyManagerSign).toBeCalled()
     expect(keyManagerSign.mock.calls[0][0].keyRef).toEqual(expectedKey.kid)
     expect(keyManagerSign.mock.calls[0][0].algorithm).toEqual(expectedKey.type === 'Ed25519' ? 'EdDSA' : 'ES256K')
+  })
+
+  test('handles createVerifiableCredential with EnvelopingProofJose', async () => {
+    expect.assertions(4)
+
+    const mockIdentifier = mockIdentifiers[2]
+    agent.didManagerGet = jest.fn(async (args): Promise<IIdentifier> => mockIdentifier)
+    agent.resolveDid = jest.fn(
+      async (args): Promise<DIDResolutionResult> => ({
+        didResolutionMetadata: {},
+        didDocumentMetadata: {},
+        didDocument: {
+          id: mockIdentifier.did,
+          verificationMethod: [
+            {
+              id: `${mockIdentifier.did}#key-1`,
+              type: 'JsonWebKey',
+              controller: mockIdentifier.did,
+              publicKeyJwk: { kty: 'OKP', crv: 'Ed25519', x: 'mock' },
+            },
+          ],
+        },
+      }),
+    )
+    const context = { agent }
+
+    const credential: CredentialPayload = {
+      '@context': ['https://www.w3.org/ns/credentials/v2', 'https://test.uncefact.org/vocabulary/untp/dpp/0.6.0/'],
+      type: ['VerifiableCredential', 'DigitalProductPassport'],
+      issuer: { id: mockIdentifier.did },
+      credentialSubject: { id: 'https://example.com/product/1' },
+    }
+
+    const vc = await w3c.createVerifiableCredential(
+      {
+        credential,
+        save: false,
+        proofFormat: 'EnvelopingProofJose',
+      },
+      context,
+    )
+
+    expect(vc['@context']).toEqual(['https://www.w3.org/ns/credentials/v2'])
+    expect(vc.type).toEqual('EnvelopedVerifiableCredential')
+    expect(vc.id).toMatch(/^data:application\/vc\+jwt,/)
+    const signedCredential = jose.decodeJwt(vc.id!.split(',')[1])
+    expect(signedCredential['@context']).toEqual([
+      'https://www.w3.org/ns/credentials/v2',
+      'https://test.uncefact.org/vocabulary/untp/dpp/0.6.0/',
+    ])
   })
 
   test.each(mockIdentifiers)('handles createVerifiablePresentation', async (mockIdentifier) => {
