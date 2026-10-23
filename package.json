@@ -2,7 +2,7 @@
   "name": "veramo",
   "private": true,
   "scripts": {
-    "postinstall": "mkdir .tmp_npm; cd .tmp_npm; git init; git remote add -f origin https://github.com/gs-gs/credential-status.git; git pull --depth=1 origin vc-v2; yarn install --ignore-scripts; yarn build;",
+    "postinstall": "CS_SHA=d7dcd114d1df36747a924aeef4f3f9972b722309 && rm -rf .tmp_npm && mkdir .tmp_npm && cd .tmp_npm && git init -q && git remote add origin https://github.com/gs-gs/credential-status.git && git fetch --depth=1 origin \"$CS_SHA\" && git checkout -q --detach FETCH_HEAD && test \"$(git rev-parse HEAD)\" = \"$CS_SHA\" && yarn install --frozen-lockfile --ignore-scripts && yarn build",
     "build": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --experimental-json-modules\" pnpm build:js && pnpm build:api && pnpm build:schema",
     "build:js": "pnpm -r --stream build",
     "build:api": "pnpm -r --stream extract-api",
@@ -81,7 +81,16 @@
   },
   "resolutions": {
     "@types/eslint": "^8.4.6",
-    "jsonld": "npm:@digitalcredentials/jsonld@^6.0.0"
+    "base-x@4": "^4.0.1",
+    "cipher-base@1": "^1.0.5",
+    "elliptic@6": "^6.6.1",
+    "fast-xml-parser@4": "^4.5.4",
+    "form-data@3": "^3.0.5",
+    "jsonld": "npm:@digitalcredentials/jsonld@^6.0.0",
+    "secp256k1@4": "^4.0.4",
+    "sha.js@2": "^2.4.12",
+    "shell-quote@1": "^1.8.4",
+    "validator@13": "^13.15.22"
   },
   "engines": {
     "node": ">= 18.0.0"
